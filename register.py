@@ -16,6 +16,8 @@ initiate_registration = {'screenName' : 'StevieWB', 'publicKey' : pem.decode('UT
 response = requests.post('http://localhost:8446/enclave/register', json=initiate_registration)
 registered = response.json()
 
+print(f"Public ID: {registered['publicId']}")
+
 signing_public_key = serialization.load_pem_public_key(
     registered['signingPublicKey'].encode('UTF-8'),
     backend=default_backend()
