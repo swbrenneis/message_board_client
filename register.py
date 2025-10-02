@@ -6,15 +6,37 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization, hashes
 
-private_key = ec.generate_private_key(ec.SECP256R1())
-public_key = private_key.public_key()
-pem = public_key.public_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PublicFormat.SubjectPublicKeyInfo)
+# Load the encrypted PEM file
+with open("encryption_private_key.pem", "rb") as key_file:
+    encrypted_pem_data = key_file.read()
 
-initiate_registration = {'screenName' : 'StevieWB', 'publicKey' : pem.decode('UTF-8')}
+# Load the private key
+password = input("Enter encryption key password: ")
+encryption_private_key = serialization.load_pem_private_key(
+    encrypted_pem_data,
+    password=password.encode('utf-8'),
+    backend=default_backend()
+)
+encryption_public_key = encryption_private_key.public_key()
+
+with open("encryption_public_key.pem", "rb") as key_file:
+    pem_data = key_file.read()
+pem = pem_data.decode("UTF-8")
+
+initiate_registration = {'screenName' : 'StevieB', 'encryptionPublicKey' : pem}
 response = requests.post('http://localhost:8446/enclave/register', json=initiate_registration)
 registered = response.json()
+
+if not registered['success']:
+    print(f"Registration failed: {registered['status']}")
+    quit()
+
+with open('data', 'w') as file:
+    file.write('StevieB\n')
+    file.write(registered['publicId'])
+    file.write('\n')
+    file.write(registered['enclaveKey'])
+    file.write('\n')
 
 print(f"Public ID: {registered['publicId']}")
 
@@ -22,6 +44,9 @@ signing_public_key = serialization.load_pem_public_key(
     registered['signingPublicKey'].encode('UTF-8'),
     backend=default_backend()
 )
+
+print(f'Enclave key: {registered['enclaveKey']}')
+print(f'Signing public key: {registered['signingPublicKey']}')
 
 digest = hashlib.sha256()
 digest.update(registered['publicId'].encode('UTF-8'))
