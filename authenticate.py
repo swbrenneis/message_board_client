@@ -5,6 +5,33 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import ec, padding
 
+# Get the passwords for the private keys
+encryption_password = input("Enter encryption key password: ")
+signing_password = input("Enter signing key password: ")
+
+# Load the signing private key
+with open("signing_private_key.pem", "rb") as key_file:
+    signing_private_key = serialization.load_pem_private_key(
+        key_file.read(),
+    password=signing_password.encode('utf-8'),
+    backend=default_backend()
+)
+
+# Get the public key from the private key
+signing_public_key = signing_private_key.public_key()
+
+# Load the user signing public key PEMs
+with open("signing_public_key.pem", "r") as file:
+    signing_public_key_pem = file.read()
+
+# Load the encryption private key
+with open('encryption_private_key.pem', 'rb') as key_file:
+    encryption_private_key = serialization.load_pem_private_key(
+        key_file.read(),
+        password=encryption_password.encode('utf-8'),
+        backend=default_backend()
+    )
+
 # Load the user details
 lines = []
 with open('data', 'r') as file:
@@ -15,31 +42,12 @@ screen_name = lines[0].strip()
 public_id = lines[1].strip()
 enclave_key = lines[2].strip()
 
+# Load the server signing public key
 with open('server_signing', 'rb') as file:
-    server_signing_pem = file.read()
-
-server_signing_public_key = serialization.load_pem_public_key(
-    server_signing_pem,
-    backend=default_backend()
+    server_signing_public_key = serialization.load_pem_public_key(
+        file.read(),
+        backend=default_backend()
 )
-
-# Load the encrypted PEM file
-with open("signing_private_key.pem", "rb") as key_file:
-    encrypted_pem_data = key_file.read()
-
-# Load the private key
-password = input("Enter signing key password: ")
-signing_private_key = serialization.load_pem_private_key(
-    encrypted_pem_data,
-    password=password.encode('utf-8'),
-    backend=default_backend()
-)
-# Get the public key from the private key
-signing_public_key = signing_private_key.public_key()
-
-# Load the user signing public key PEM
-with open("signing_public_key.pem", "r") as file:
-    signing_public_key_pem = file.read()
 
 digest = hashlib.sha256()
 digest.update(public_id.encode('utf-8'))
@@ -64,14 +72,6 @@ if not authenticated['authenticated']:
     print(f"Authentication failed")
     quit()
 
-password = input("Enter encryption key password: ")
-
-with open('encryption_private_key.pem', 'rb') as key_file:
-    encryption_private_key = serialization.load_pem_private_key(
-        key_file.read(),
-        password=password.encode('utf-8'),
-        backend=default_backend()
-    )
 
 # Decrypt the sessionKey
 encoded_session_key = authenticated['sessionKey']
