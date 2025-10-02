@@ -45,8 +45,8 @@ signing_public_key = serialization.load_pem_public_key(
     backend=default_backend()
 )
 
-print(f'Enclave key: {registered['enclaveKey']}')
-print(f'Signing public key: {registered['signingPublicKey']}')
+print(f"Enclave key: {registered['enclaveKey']}")
+print(f"Signing public key: {registered['signingPublicKey']}")
 
 digest = hashlib.sha256()
 digest.update(registered['publicId'].encode('UTF-8'))
