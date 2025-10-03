@@ -23,7 +23,7 @@ with open("encryption_public_key.pem", "rb") as key_file:
     pem_data = key_file.read()
 pem = pem_data.decode("UTF-8")
 
-initiate_registration = {'screenName' : 'StevieB', 'encryptionPublicKey' : pem}
+initiate_registration = {'screenName' : 'SteveWB', 'encryptionPublicKey' : pem}
 response = requests.post('http://localhost:8446/enclave/register', json=initiate_registration)
 registered = response.json()
 
@@ -32,7 +32,7 @@ if not registered['success']:
     quit()
 
 with open('data', 'w') as file:
-    file.write('StevieB\n')
+    file.write('SteveWB\n')
     file.write(registered['publicId'])
     file.write('\n')
     file.write(registered['enclaveKey'])
