@@ -1,29 +1,25 @@
-import requests
-import hashlib
 import base64
-
-from cryptography.hazmat.backends import default_backend
+import crypto_util
+import requests
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization, hashes
 
-# Load the encrypted PEM file
-with open("encryption_private_key.pem", "rb") as key_file:
-    encrypted_pem_data = key_file.read()
+from authenticate import server_signing_public_key
+
+screen_name = input("Enter screen name: ")
 
 # Load the private key
 password = input("Enter encryption key password: ")
-encryption_private_key = serialization.load_pem_private_key(
-    encrypted_pem_data,
-    password=password.encode('utf-8'),
-    backend=default_backend()
-)
+encryption_private_key = crypto_util.private_key_from_file("encryption_private_key.pem", password)
 encryption_public_key = encryption_private_key.public_key()
 
-with open("encryption_public_key.pem", "rb") as key_file:
-    pem_data = key_file.read()
-pem = pem_data.decode("UTF-8")
+with open("encryption_public_key.pem", "r") as key_file:
+    encryption_pem_data = key_file.read()
 
-initiate_registration = {'screenName' : 'SteveWB', 'encryptionPublicKey' : pem}
+with open("signing_public_key.pem", "r") as key_file:
+    signing_pem_data = key_file.read()
+
+initiate_registration = {'screenName' : screen_name, 'encryptionPublicKey' : encryption_pem_data, 'signingPublicKey': signing_pem_data}
 response = requests.post('http://localhost:8446/enclave/register', json=initiate_registration)
 registered = response.json()
 
@@ -31,8 +27,9 @@ if not registered['success']:
     print(f"Registration failed: {registered['status']}")
     quit()
 
-with open('data', 'w') as file:
-    file.write('SteveWB\n')
+with open(f'{screen_name}_data', 'w') as file:
+    file.write(screen_name)
+    file.write('\n')
     file.write(registered['publicId'])
     file.write('\n')
     file.write(registered['enclaveKey'])
@@ -40,26 +37,24 @@ with open('data', 'w') as file:
 
 print(f"Public ID: {registered['publicId']}")
 
-signing_public_key = serialization.load_pem_public_key(
-    registered['signingPublicKey'].encode('UTF-8'),
-    backend=default_backend()
-)
+server_signing_public_key = crypto_util.public_key_from_string(registered['signingPublicKey'])
 
 print(f"Enclave key: {registered['enclaveKey']}")
 print(f"Signing public key: {registered['signingPublicKey']}")
 
-digest = hashlib.sha256()
-digest.update(registered['publicId'].encode('UTF-8'))
-digest.update(registered['enclaveKey'].encode('UTF-8'))
-digest.update(registered['signingPublicKey'].encode('UTF-8'))
-digest.update(registered['status'].encode('UTF-8'))
-hash_bytes = digest.digest()
+strings_to_hash = [
+registered['publicId'],
+registered['enclaveKey'],
+registered['signingPublicKey'],
+registered['status']
+]
+hash_bytes = crypto_util.hash_strings(strings_to_hash)
 
 signature_bytes = base64.b64decode(registered['signature'])
 
 # Verify the signature
 try:
-    signing_public_key.verify(signature_bytes, hash_bytes, ec.ECDSA(hashes.SHA256()))
+    server_signing_public_key.verify(signature_bytes, hash_bytes, ec.ECDSA(hashes.SHA256()))
     print("Signature is valid.")
 except Exception as e:
     print("Signature verification failed:", e)

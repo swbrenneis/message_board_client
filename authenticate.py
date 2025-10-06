@@ -5,11 +5,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import ec, padding
 
+screen_name = input("Enter screen name: ")
 # Get the passwords for the private keys
 encryption_password = input("Enter encryption key password: ")
 signing_password = input("Enter signing key password: ")
 
-# Load the signing private key
+data_file = f'{screen_name}_data'
+
+# Load the user signing private key
 with open("signing_private_key.pem", "rb") as key_file:
     signing_private_key = serialization.load_pem_private_key(
         key_file.read(),
@@ -17,14 +20,7 @@ with open("signing_private_key.pem", "rb") as key_file:
     backend=default_backend()
 )
 
-# Get the public key from the private key
-signing_public_key = signing_private_key.public_key()
-
-# Load the user signing public key PEMs
-with open("signing_public_key.pem", "r") as file:
-    signing_public_key_pem = file.read()
-
-# Load the encryption private key
+# Load the encryption private key (used to decrypt enclave key)
 with open('encryption_private_key.pem', 'rb') as key_file:
     encryption_private_key = serialization.load_pem_private_key(
         key_file.read(),
@@ -34,7 +30,7 @@ with open('encryption_private_key.pem', 'rb') as key_file:
 
 # Load the user details
 lines = []
-with open('data', 'r') as file:
+with open(data_file, 'r') as file:
     for line in file.readlines():
         lines.append(line)
 
@@ -52,7 +48,6 @@ with open('server_signing', 'rb') as file:
 digest = hashlib.sha256()
 digest.update(public_id.encode('utf-8'))
 digest.update(enclave_key.encode('utf-8'))
-digest.update(signing_public_key_pem.encode('utf-8'))
 message = digest.digest()
 message_string = message.hex()
 
@@ -61,9 +56,7 @@ signature = signing_private_key.sign(message, ec.ECDSA(hashes.SHA256()))
 signature_hex = signature.hex()
 signature_encoded = base64.b64encode(signature).decode('UTF-8')
 
-initiate_authentication = { 'publicId': public_id, 'enclaveKey': enclave_key,
-                            'signingPublicKey': signing_public_key_pem,
-                            'signature': signature_encoded}
+initiate_authentication = { 'publicId': public_id, 'enclaveKey': enclave_key, 'signature': signature_encoded}
 
 response = requests.post('http://localhost:8446/enclave/authenticate', json=initiate_authentication)
 authenticated = response.json()
@@ -71,7 +64,6 @@ authenticated = response.json()
 if not authenticated['authenticated']:
     print(f"Authentication failed")
     quit()
-
 
 # Decrypt the sessionKey
 encoded_session_key = authenticated['sessionKey']
@@ -90,6 +82,13 @@ except Exception as e:
     print(f"Decryption failed: {e}")
     quit()
 
+session_key = base64.b64encode(decrypted_data).decode('UTF-8')
+
+with open("session_data", 'w') as file:
+    file.write(session_key)
+    file.write('\n')
+    file.write(authenticated['sessionId'])
+    file.write('\n')
 
 signature_bytes = base64.b64decode(authenticated['signature'])
 sha256 = hashlib.sha256()
