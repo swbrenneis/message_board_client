@@ -3,9 +3,8 @@ import hashlib
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ec, padding
 from cryptography.hazmat.primitives import serialization, hashes
-
 
 def public_key_from_string(public_key_string):
     return serialization.load_pem_public_key(
@@ -43,3 +42,16 @@ def verify_message(signature, strings, public_key):
         return True
     except InvalidSignature:
         return False
+
+def decrypt_bytes(ciphertext, private_key):
+    """ Decrypts ciphertext bytes and returns a byte array """
+    plaintext = private_key.decrypt(
+        ciphertext,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return plaintext
+
