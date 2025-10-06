@@ -4,8 +4,6 @@ import requests
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from authenticate import server_signing_public_key
-
 screen_name = input("Enter screen name: ")
 
 # Load the private key
