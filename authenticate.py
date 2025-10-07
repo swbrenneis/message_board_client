@@ -67,6 +67,10 @@ signature_encoded = base64.b64encode(signature).decode('UTF-8')
 initiate_authentication = { 'publicId': public_id, 'enclaveKey': enclave_key_string, 'signature': signature_encoded}
 
 response = requests.post('http://localhost:8446/enclave/authenticate', json=initiate_authentication)
+if (response.status_code != 200):
+    print(f'{response.status_code}: {response.text}')
+    quit()
+
 authenticated = response.json()
 
 if not authenticated['authenticated']:
