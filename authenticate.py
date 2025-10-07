@@ -50,7 +50,7 @@ with open('server_signing', 'rb') as file:
 # Decode and decrypt the enclave key. It is double encrypted. The version
 # in the file is encrypted to the user encryption key
 enclave_key_bytes = base64.b64decode(enclave_key)
-cleartext = crypto_util.decrypt_bytes(enclave_key_bytes, encryption_private_key)
+cleartext = crypto_util.rsa_decrypt_bytes(enclave_key_bytes, encryption_private_key)
 enclave_key_string = cleartext.decode('utf-8')
 
 digest = hashlib.sha256()
@@ -94,6 +94,7 @@ except Exception as e:
 # Decrypt the sessionKey
 encoded_session_key = authenticated['sessionKey']
 encrypted_session_key = base64.b64decode(encoded_session_key)
+encrypted_session_key_hex = encrypted_session_key.hex()
 
 try:
     decrypted_data = encryption_private_key.decrypt(
@@ -108,6 +109,7 @@ except Exception as e:
     print(f"Decryption failed: {e}")
     quit()
 
+decrypted_data_hex = decrypted_data.hex()
 session_key = base64.b64encode(decrypted_data).decode('UTF-8')
 
 with open("session_data", 'w') as file:

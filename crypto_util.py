@@ -1,10 +1,14 @@
 import base64
 import hashlib
+import os
+import numpy as np
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec, padding
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
 
 def public_key_from_string(public_key_string):
     return serialization.load_pem_public_key(
@@ -43,7 +47,7 @@ def verify_message(signature, strings, public_key):
     except InvalidSignature:
         return False
 
-def decrypt_bytes(ciphertext, private_key):
+def rsa_decrypt_bytes(ciphertext, private_key):
     """ Decrypts ciphertext bytes and returns a byte array """
     plaintext = private_key.decrypt(
         ciphertext,
@@ -55,3 +59,23 @@ def decrypt_bytes(ciphertext, private_key):
     )
     return plaintext
 
+def aes_encrypt_bytes(plaintext, secret_key):
+    """ Encrypts plaintext bytes and returns a byte array """
+    iv = os.urandom(12)
+    encryptor = Cipher(
+        algorithms.AES(secret_key),
+        modes.GCM(iv),
+        backend=default_backend()
+    ).encryptor()
+    ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+    join_list = [iv, ciphertext, encryptor.tag]
+    return b''.join(join_list)
+
+def aes_decrypt_bytes(ciphertext, iv, secret_key):
+    """ Decrypts ciphertext bytes and returns a byte array """
+    decryptor = Cipher(
+        algorithms.AES(secret_key),
+        modes.GCM(iv),
+        backend=default_backend()
+    ).encryptor()
+    return decryptor.update(ciphertext) + decryptor.finalize()
